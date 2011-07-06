@@ -9,7 +9,7 @@ Gem::Specification.new do |s|
   s.email       = ["jon@blankpad.net"]
   s.homepage    = "https://github.com/jellybob/chef-gelf"
   s.summary     = %q{Provides a Chef handler which reports run failures and changes to a Graylog2 server.}
-  s.description = %q{TODO: Write a gem description}
+  s.description = File.read("README.rdoc")
 
   s.rubyforge_project = "chef-gelf"
 

@@ -2,40 +2,45 @@ require "chef/gelf/version"
 require 'gelf'
 require 'chef/log'
 
-module Chef
+class Chef
   module GELF
     class Handler < Chef::Handler
       attr_reader :notifier
       attr_reader :options
       
       def options=(value = {})
-        @options = { :port => 12201, :facility => "chef_client", :blacklist => {} }.merge(value)
+        @options = { :port => 12201, :facility => "chef_client", :blacklist => {}, :host => nil }.merge(value)
       end
 
       def initialize(options = {})
         self.options = options
         
-        Chef::Log.debug "Initialised GELF handler for gelf://#{options[:server]}:#{options[:port]}/#{options[:facility]}"
-        @notifier = GELF::Notifier.new(options[:server], options[:port], 'WAN', :facility => options[:facility])
+        Chef::Log.debug "Initialised GELF handler for gelf://#{self.options[:server]}:#{self.options[:port]}/#{self.options[:facility]}"
+        @notifier = ::GELF::Notifier.new(self.options[:server], self.options[:port], 'WAN', :facility => self.options[:facility])
       end
 
       def report
         Chef::Log.debug "Reporting #{run_status.inspect}"
         if run_status.failed?
-          Chef::Log.info "Notifying Graylog server of failure."
+          Chef::Log.debug "Notifying Graylog server of failure."
           @notifier.notify!(:short_message => "Chef run failed on #{@notifier.host}. Updated #{changes[:count]} resources.",
                             :full_message => run_status.formatted_exception + "\n" + Array(backtrace).join("\n") + changes[:message],
-                            :level => GELF::Levels::FATAL,
-                            :host => node.name)
+                            :level => ::GELF::Levels::FATAL,
+                            :host => host_name)
         else
-          Chef::Log.info "Notifying Graylog server of success."
+          Chef::Log.debug "Notifying Graylog server of success."
           @notifier.notify!(:short_message => "Chef run completed on #{node.name} in #{elapsed_time}. Updated #{changes[:count]} resources.",
                             :full_message => changes[:message],
-                            :level => GELF::Levels::INFO,
-                            :host => node.name)
+                            :level => ::GELF::Levels::INFO,
+                            :host => host_name)
         end
       end
-
+      
+      protected
+      def host_name
+        options[:host] || node[:fqdn]
+      end
+      
       def changes
         @changes unless @changes.nil?
         
@@ -53,15 +58,15 @@ module Chef
 
         @changes = { :lines => lines, :count => count, :message => message }
       end
-    end
 
-    def sanitised_changes
-      run_status.updated_resources.reject do |updated|
-        options[:blacklist].each do |cookbook, resources|
-          resources.each do |resource, actions|
-            updated.cookbook_name == cookbook && 
-            updated.resource_name == resource && 
-            actions.collect { |a| a.to_s }.include?(updated.action.to_s)
+      def sanitised_changes
+        run_status.updated_resources.reject do |updated|
+          options[:blacklist].each do |cookbook, resources|
+            resources.each do |resource, actions|
+              updated.cookbook_name == cookbook && 
+              updated.resource_name == resource && 
+              actions.collect { |a| a.to_s }.include?(updated.action.to_s)
+            end
           end
         end
       end
