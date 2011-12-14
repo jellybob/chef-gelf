@@ -61,13 +61,13 @@ class Chef
 
       def sanitised_changes
         run_status.updated_resources.reject do |updated|
-          options[:blacklist].each do |cookbook, resources|
-            resources.each do |resource, actions|
-              updated.cookbook_name == cookbook && 
-              updated.resource_name == resource && 
-              actions.collect { |a| a.to_s }.include?(updated.action.to_s)
-            end
+          cookbook = @options[:blacklist][updated.cookbook_name]
+          if cookbook
+            resource = cookbook[updated.resource_name.to_s] || []
+          else
+            resource = []
           end
+          cookbook && resource.include?(updated.action.to_s)
         end
       end
     end
