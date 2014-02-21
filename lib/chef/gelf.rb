@@ -44,7 +44,7 @@ class Chef
       def changes
         @changes unless @changes.nil?
         
-        lines = sanitised_changes.collect do |resource|
+        lines = run_status.updated_resources.collect do |resource|
           "recipe[#{resource.cookbook_name}::#{resource.recipe_name}] ran '#{resource.action}' on #{resource.resource_name} '#{resource.name}'"
         end
 
